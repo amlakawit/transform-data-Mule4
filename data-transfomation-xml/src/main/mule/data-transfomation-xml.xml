@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="a67bae6f-3ed3-435f-8f8c-59e50efac4f1" >
+		<file:connection workingDir="C:\workspace\MuleSoft\MuleSoftWithFish\Hands-On\data-transformation\output" />
+	</file:config>
+	<file:config name="File_Config1" doc:name="File Config" doc:id="a79f33f8-27e9-4fa7-b4f8-aeb25fd37530" >
+		<file:connection workingDir="C:\workspace\MuleSoft\MuleSoftWithFish\Hands-On\data-transformation\output" />
+	</file:config>
+	<file:config name="File_Config2" doc:name="File Config" doc:id="48de697a-735b-4641-92f4-a3cb0eaafcf8" >
+		<file:connection workingDir="C:\workspace\MuleSoft\MuleSoftWithFish\Hands-On\data-transformation\output" />
+	</file:config>
+	<flow name="data-transfomation-xmlFlow" doc:id="0020f7f8-c46b-4659-be2d-2ba1bdabf767" >
+		<file:listener doc:name="On New or Updated File" doc:id="aba5aeac-1000-4026-8ba3-b10731c4b771" directory="C:\workspace\MuleSoft\MuleSoftWithFish\Hands-On\data-transformation\input" autoDelete="true" moveToDirectory="C:\workspace\MuleSoft\MuleSoftWithFish\Hands-On\data-transformation\backup" renameTo="#[&quot;backup-&quot; ++ now() as String{format: 'Y-M-d-h-m-s'} ++ &quot;-&quot; ++ vars.fileName]" outputMimeType="application/xml">
+			<scheduling-strategy >
+				<fixed-frequency frequency="10" timeUnit="SECONDS" />
+			</scheduling-strategy>
+			<file:matcher filenamePattern="*.xml" />
+		</file:listener>
+		<set-variable value="#[attributes.fileName]" doc:name="File Name" doc:id="9c5c2a6d-d415-42f7-9adf-4c3bc1a86def" variableName="fileName"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="7c107309-9272-488c-ab5c-50826c4032f1" >
+			<route >
+				<flow-ref doc:name="Flow Reference to CSV subflow" doc:id="305765d8-8ca1-4fd1-af4c-88cca1250597" name="transform-to-csv-subflow"/>
+			</route>
+			<route >
+				<flow-ref doc:name="Flow Reference to json subflow" doc:id="fa857d2c-8505-460a-a7f9-5d2174cd81c7" name="transform-to-json-subflow"/>
+			</route>
+			<route >
+				<flow-ref doc:name="Flow Reference to xlsx subflow" doc:id="97bbee55-a3e1-4db4-95df-0e2a3506e353" name="transform-to-xlsx-subflow"/>
+			</route>
+		</scatter-gather>
+		<logger level="INFO" doc:name="Logger" doc:id="caf3fdf0-3c06-43fb-8856-e73f02638f9f" message="Data processed"/>
+	</flow>
+	<sub-flow name="transform-to-csv-subflow" doc:id="8038c11e-b146-4c09-b38e-c891fcf55738" >
+		<ee:transform doc:name="Transform Message" doc:id="58b431a2-e1a4-4845-a63e-10cb92068b0b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload.DATA.*ROW]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="Write" doc:id="05086941-63ad-4940-b576-8b87a197b104" config-ref="File_Config" path="#[&quot;file-&quot; ++ now() as String {format: 'y-M-d-h-m-s'} ++  &quot;.csv&quot;]"/>
+	</sub-flow>
+	<sub-flow name="transform-to-json-subflow" doc:id="7dafd87b-a123-4dc4-9343-994dd43096f0" >
+		<ee:transform doc:name="Transform Message" doc:id="456d6e11-1866-4009-8ccf-a63b3b1586ab" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload.DATA.*ROW]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="Write" doc:id="36f27713-8aad-42c7-acdc-dccaa0ddefa7" config-ref="File_Config1" path="#[&quot;file-&quot; ++ now() as String {format: 'y-M-d-h-m-s'} ++  &quot;.json&quot;]"/>
+	</sub-flow>
+	<sub-flow name="transform-to-xlsx-subflow" doc:id="23e85810-2261-445a-87e5-08a8bf3badc5" >
+		<ee:transform doc:name="Transform Message" doc:id="2155fd15-7199-44f8-bcb9-8e0704f07e74" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xlsx
+---
+{
+	'sheet1':payload.DATA.*ROW
+
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="Write" doc:id="42a7cb7c-9723-4c1b-aaea-8d18b3e106a4" config-ref="File_Config2" path="#[&quot;file-&quot; ++ now() as String {format: 'y-M-d-h-m-s'} ++ &quot;.xlsx&quot;]"/>
+	</sub-flow>
+</mule>
